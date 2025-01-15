@@ -60,7 +60,8 @@ class CreateNoiseReals(object):
         cos = np.cos(rot_angle)
         sin = np.sin(rot_angle)
         e1_new = + e1 * cos + e2 * sin
-        e2_new = - e1 * sin + e2 *
+        e2_new = - e1 * sin + e2 * cos
+        return e1_new, e2_new
         
         
 class MakeMapFromCat(object):
@@ -118,8 +119,8 @@ class MakeMapFromCat(object):
         return (map1 * w1 + map2 * w2) / (w1 + w2), w1 + w2
     
     
-    def rotate_map(maps, rot_angles, nside, flip=False):
-    
+def rotate_map(maps, rot_angles, nside, flip=False):
+
     alpha, delta = hp.pix2ang(nside, np.arange(maps.shape[1]))
     rot = hp.rotator.Rotator(rot=rot_angles, deg=True)
     rot_alpha, rot_delta = rot(alpha, delta)
