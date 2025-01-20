@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 from jax.scipy import interpolate
-from functools import partial
 
 
 #### A scipy function which compute n(z) w.r.t different photometric redshift uncertainty ####
