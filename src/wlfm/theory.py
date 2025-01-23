@@ -3,6 +3,7 @@ from scipy import interpolate
 import numpy as np
 import healpy as hp
 import cloudpickle
+import tensorflow as tf
 
 data_dir = "/home/moon/dgebauer/research/DLWL/data/emulators/"
 train_dir = data_dir + "train/"
@@ -77,16 +78,22 @@ P_shift = jnp.load(train_dir + "P_shift.npy")
 H_chi_D_mean = jnp.load(conv_fac_dir + "H_chi_D_mean.npy")
 H_chi_D_range = jnp.load(conv_fac_dir + "H_chi_D_range.npy")
 
-
-with open(model_dir + 'H_chi_D_emulator.pkl', 'rb') as f:
-    H_chi_d_emulator = cloudpickle.load(f)
+emulator_H = tf.saved_model.load(model_dir + 'gpflow_H')
+emulator_chi = tf.saved_model.load(model_dir + 'gpflow_chi')
+emulator_D = tf.saved_model.load(model_dir + 'gpflow_D')
 
 with open(model_dir + 'P_emulator.pkl', 'rb') as f:
     P_emulator = cloudpickle.load(f)
 
 # Takes ['Omega_m', 'w0', 'z'] as input
 def get_H_chi_D(theta):
-    return (H_chi_d_emulator(theta) * H_chi_D_range) + H_chi_D_mean
+    
+    pred_H = jnp.asarray(emulator_H.predict_f_compiled(theta)[0].numpy())
+    pred_chi = jnp.asarray(emulator_chi.predict_f_compiled(theta)[0].numpy())
+    pred_D = jnp.asarray(emulator_D.predict_f_compiled(theta)[0].numpy())
+    pred = jnp.concatenate([pred_H, pred_chi, pred_D], axis=1)
+    print(pred.shape)
+    return (pred * H_chi_D_range) + H_chi_D_mean
 
 # Takes ['Omega_m', 'Omega_b', 'h', 'ns', 'sigma8', 'w0', 'z'] as input
 def get_P_from_NN(theta):
@@ -495,7 +502,7 @@ def get_H_chi_q_from_NN(theta):
 def correlation_compute(theta):
     
     theta_P = theta[:,:6].copy()
-    theta_P[:,2] /= 100.0
+    theta_P = theta_P.at[:,2].multiply(0.01)
     z_expansion = jnp.reshape(jnp.tile(z_list_integ, [theta.shape[0]]), [-1,1])
     theta_expansion = jnp.repeat(theta_P, z_list_integ.size, axis=0)
     theta_expansion = jnp.concat([theta_expansion, z_expansion], axis=1)
